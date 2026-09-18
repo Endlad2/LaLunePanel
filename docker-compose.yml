@@ -1,7 +1,9 @@
 services:
   lalune-panel:
-    build: .
-    image: lalune-panel
+    # pull the prebuilt GHCR image by default;
+    # comment `image:` and uncomment `build:` to build locally instead
+    image: ghcr.io/endlad2/lalunepanel:latest
+    # build: .
     container_name: lalune-panel
     restart: unless-stopped
     ports:

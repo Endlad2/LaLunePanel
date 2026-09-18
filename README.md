@@ -1,7 +1,7 @@
 # ☾ LaLune Panel
 
 A self-hosted control panel for WebRTC-tunneled VPNs (**olcRTC**, **OpenFlux**).
-Ships as a single Debian-slim Docker container: Go backend (API on `/api/`) +
+Ships as a single Debian-slim Docker image: Go backend (API on `/api/`) +
 static frontend (on `/`). Protocol server binaries are pulled on demand from
 GitHub Releases.
 
@@ -16,20 +16,67 @@ The installer asks:
 1. **install** / **uninstall**
 2. (on install) the **port** to host on — default `6333`
 
-Then it clones the repo to `/opt/lalune`, builds the image, and starts the
-container with a persistent data volume at `/opt/lalune/data`.
+By default it **pulls the prebuilt multi-arch image from GHCR**
+(`ghcr.io/endlad2/lalunepanel:latest`) — fast, no Go toolchain needed.
+If the pull fails (private package, missing tag), it offers to build locally.
+
+### Installer flags
+
+| Flag ↕▾ | Effect ↕▾ |
+|---|---|
+| −`--build` | force a local `docker build` from source instead of pulling |
+| −`--tag=v1.2.3` | use a specific image tag (default `latest`) |
+| −`--port=8080` | skip the port prompt |
+| −`--branch=master` | override the git branch used for local builds |
+⚙
+
+Examples:
+
+```
+# local build (dev)
+curl -fsSL .../install.sh | bash -s -- --build
+
+# pinned version
+curl -fsSL .../install.sh | bash -s -- --tag=v1.0.0 --port=8080
+```
 
 ## What's inside
 
 | Path ↕▾ | Purpose ↕▾ |
 |---|---|
-| −`install.sh` | curl-able installer/uninstaller |
+| −`install.sh` | curl-able installer/uninstaller (pull from GHCR or build locally) |
 | −`Dockerfile` | multi-stage build (Go builder → Debian slim runtime) |
 | −`backend/` | Go API server, protocol orchestration, client store |
 | −`frontend/` | vanilla-JS SPA (dashboard + clients) |
 | −`protocols/` | protocol docs (binaries fetched at runtime) |
-| −`.github/workflows/release.yml` | CI: build + release tarballs (with `permissions: write`) |
+| −`.github/workflows/release.yml` | CI: build binaries + tarballs, push multi-arch image to GHCR |
 ⚙
+
+## Docker image (GHCR)
+
+Published on every push to `master`/`main` and on `v*` tags:
+
+```
+ghcr.io/endlad2/lalunepanel:latest   # default branch
+ghcr.io/endlad2/lalunepanel:edge     # default branch
+ghcr.io/endlad2/lalunepanel:v1.2.3   # tag
+ghcr.io/endlad2/lalunepanel:1.2      # tag (major.minor)
+ghcr.io/endlad2/lalunepanel:1        # tag (major)
+```
+
+Platforms: `linux/amd64`, `linux/arm64`.
+
+> The package must be **public** for anonymous `docker pull` to work.
+> Set it in: GitHub repo → Packages → `lalunepanel` → Package settings → Change visibility.
+
+Manual run without the installer:
+
+```
+docker run -d --name lalune-panel --restart unless-stopped \
+    -p 6333:6333 \
+    -v /opt/lalune/data:/data \
+    ghcr.io/endlad2/lalunepanel:latest
+```
 
 ## Panels
 
