@@ -1,0 +1,68 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [master, main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache-dependency-path: backend/go.sum
+
+      - name: Build backend (amd64)
+        working-directory: backend
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -trimpath -ldflags="-s -w" -o ../dist/lalune-panel-linux-amd64 ./cmd/server
+
+      - name: Build backend (arm64)
+        working-directory: backend
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+            go build -trimpath -ldflags="-s -w" -o ../dist/lalune-panel-linux-arm64 ./cmd/server
+
+      - name: Package release tarballs
+        run: |
+          mkdir -p release
+          for arch in amd64 arm64; do
+            stage="release/lalune-panel-${arch}"
+            mkdir -p "$stage"
+            cp dist/lalune-panel-linux-${arch} "$stage/lalune-panel"
+            cp -r frontend "$stage/frontend"
+            cp -r protocols "$stage/protocols"
+            cp install.sh Dockerfile "$stage/" 2>/dev/null || true
+            tar -C release -czf "release/lalune-panel-linux-${arch}.tar.gz" "lalune-panel-${arch}"
+          done
+          ls -la release
+
+      - name: Build Docker image
+        run: |
+          docker build -t lalune-panel:${{ github.sha }} .
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: lalune-panel-binaries
+          path: release/*.tar.gz
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.tar.gz
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

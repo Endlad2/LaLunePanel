@@ -1,0 +1,7 @@
+.git
+.github
+data
+dist
+release
+*.tar.gz
+README.md

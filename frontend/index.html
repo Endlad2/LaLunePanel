@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LaLune Panel</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">
+        <span class="logo-mark">☾</span>
+        <span class="logo-text">LaLune</span>
+      </div>
+      <nav>
+        <a href="#/dashboard" class="nav-item" data-route="dashboard">Dashboard</a>
+        <a href="#/clients"   class="nav-item" data-route="clients">Clients</a>
+      </nav>
+      <div class="sidebar-footer">
+        <span id="hostname" class="muted">—</span>
+      </div>
+    </aside>
+
+    <main class="content">
+      <!-- DASHBOARD -->
+      <section id="view-dashboard" class="view">
+        <h1>Dashboard</h1>
+        <div class="cards">
+          <div class="card">
+            <div class="card-label">Clients</div>
+            <div class="card-value" id="stat-clients">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Active</div>
+            <div class="card-value" id="stat-active">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Load (1m)</div>
+            <div class="card-value" id="stat-load">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Memory</div>
+            <div class="card-value" id="stat-mem">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">CPU cores</div>
+            <div class="card-value" id="stat-cores">—</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Uptime</div>
+            <div class="card-value" id="stat-uptime">—</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CLIENTS -->
+      <section id="view-clients" class="view hidden">
+        <div class="view-head">
+          <h1>Clients</h1>
+          <button class="btn btn-primary" id="btn-add">+ Add client</button>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Protocol</th>
+              <th>Expires</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="clients-body"></tbody>
+        </table>
+        <div id="clients-empty" class="empty hidden">No clients yet. Click “Add client”.</div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ADD CLIENT MODAL -->
+  <div class="modal-backdrop hidden" id="modal">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="modal-title">Add client</h2>
+        <button class="btn-icon" id="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- step 1: basics -->
+        <div id="step-1">
+          <label class="field">
+            <span>Name</span>
+            <input type="text" id="f-name" placeholder="Alice" />
+          </label>
+
+          <label class="field">
+            <span>Protocol</span>
+            <select id="f-protocol"></select>
+          </label>
+
+          <label class="field">
+            <span>Subscription days</span>
+            <input type="number" id="f-days" value="30" min="1" />
+          </label>
+
+          <p class="hint" id="proto-desc"></p>
+        </div>
+
+        <!-- step 2: protocol params (built dynamically) -->
+        <div id="step-2" class="hidden">
+          <div id="params-container"></div>
+        </div>
+
+        <div id="modal-error" class="error hidden"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" id="btn-back" style="visibility:hidden">Back</button>
+        <button class="btn btn-primary" id="btn-next">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULT MODAL -->
+  <div class="modal-backdrop hidden" id="result-modal">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Client created</h2>
+        <button class="btn-icon" id="result-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="hint">Share this config with the client.</p>
+        <pre id="result-config" class="pre"></pre>
+        <div id="result-uri-wrap" class="hidden">
+          <label class="field">
+            <span>Shareable URI</span>
+            <input type="text" id="result-uri" readonly />
+          </label>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-primary" id="result-done">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
