@@ -138,14 +138,18 @@ func (s *Server) handleClientByID(w http.ResponseWriter, r *http.Request) {
 // Body:
 //   {
 //     "name": "Alice",
-//     "protocol": "olcrtc" | "openflux",
+//     "protocol": "olcrtc",
+//     "role": "srv" | "cnc",
 //     "days": 30,
 //     "params": { ...protocol-specific fields... }
 //   }
+//
+// For protocols with HasRoles=false (OpenFlux), "role" is forced to "srv".
 func (s *Server) createClient(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name     string            `json:"name"`
 		Protocol string            `json:"protocol"`
+		Role     string            `json:"role"`
 		Days     int               `json:"days"`
 		Params   map[string]string `json:"params"`
 	}
@@ -167,6 +171,20 @@ func (s *Server) createClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Resolve role. Protocols without roles are always server-side.
+	role := protocol.RoleServer
+	if proto.HasRoles {
+		role = protocol.Role(req.Role)
+		if role != protocol.RoleServer && role != protocol.RoleClient {
+			writeErr(w, 400, "role must be 'srv' or 'cnc'")
+			return
+		}
+	}
+
+	if req.Params == nil {
+		req.Params = map[string]string{}
+	}
+
 	// 1. ensure the server binary for this protocol is present
 	binPath, err := protocol.EnsureBinary(s.dataDir, proto)
 	if err != nil {
@@ -175,7 +193,7 @@ func (s *Server) createClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. generate config from user-supplied params
-	res, err := protocol.GenerateConfig(proto, binPath, req.Params)
+	res, err := protocol.GenerateConfig(proto, role, binPath, req.Params)
 	if err != nil {
 		writeErr(w, 400, "config generation failed: "+err.Error())
 		return
@@ -195,9 +213,11 @@ func (s *Server) createClient(w http.ResponseWriter, r *http.Request) {
 		ID:         id,
 		Name:       req.Name,
 		Protocol:   req.Protocol,
+		Role:       string(role),
 		Config:     res.Config,
 		ConfigFile: fmt.Sprintf("clients/%s.conf", id),
 		URI:        res.URI,
+		SocksAddr:  res.SocksAddr,
 		CreatedAt:  time.Now().UTC(),
 		ExpiresAt:  time.Now().UTC().AddDate(0, 0, req.Days),
 		Enabled:    true,

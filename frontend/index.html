@@ -64,6 +64,7 @@
           <thead>
             <tr>
               <th>Name</th>
+              <th>Role</th>
               <th>Protocol</th>
               <th>Expires</th>
               <th>Status</th>
@@ -97,6 +98,21 @@
             <select id="f-protocol"></select>
           </label>
 
+          <!-- role radio: only shown for protocols with has_roles=true -->
+          <div class="field" id="role-field">
+            <span>Role</span>
+            <div class="radio-row">
+              <label class="radio">
+                <input type="radio" name="role" value="srv" checked />
+                <span>Server (srv)</span>
+              </label>
+              <label class="radio">
+                <input type="radio" name="role" value="cnc" />
+                <span>Client (cnc)</span>
+              </label>
+            </div>
+          </div>
+
           <label class="field">
             <span>Subscription days</span>
             <input type="number" id="f-days" value="30" min="1" />
@@ -123,16 +139,22 @@
   <div class="modal-backdrop hidden" id="result-modal">
     <div class="modal">
       <div class="modal-head">
-        <h2>Client created</h2>
+        <h2 id="result-title">Client created</h2>
         <button class="btn-icon" id="result-close">✕</button>
       </div>
       <div class="modal-body">
-        <p class="hint">Share this config with the client.</p>
+        <p class="hint" id="result-hint">Share this config with the other side.</p>
         <pre id="result-config" class="pre"></pre>
         <div id="result-uri-wrap" class="hidden">
           <label class="field">
             <span>Shareable URI</span>
             <input type="text" id="result-uri" readonly />
+          </label>
+        </div>
+        <div id="result-socks-wrap" class="hidden">
+          <label class="field">
+            <span>SOCKS5 address</span>
+            <input type="text" id="result-socks" readonly />
           </label>
         </div>
       </div>

@@ -3,11 +3,9 @@
 const state = {
   protocols: [],
   selectedProtocol: null,
+  selectedRole: "srv",
   step: 1,
-  params: {},
 };
-
-// --- helpers ---------------------------------------------------------------
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -20,9 +18,7 @@ async function api(path, opts = {}) {
   const text = await res.text();
   let data;
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-  if (!res.ok) {
-    throw new Error((data && data.error) || `HTTP ${res.status}`);
-  }
+  if (!res.ok) throw new Error((data && data.error) || `HTTP ${res.status}`);
   return data;
 }
 
@@ -51,8 +47,13 @@ function fmtDate(iso) {
 
 function daysLeft(iso) {
   if (!iso) return 0;
-  const diff = new Date(iso) - new Date();
-  return Math.ceil(diff / 86400000);
+  return Math.ceil((new Date(iso) - new Date()) / 86400000);
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (m) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[m]));
 }
 
 // --- routing ---------------------------------------------------------------
@@ -81,7 +82,7 @@ async function loadStats() {
     $("#stat-clients").textContent = s.clients ?? "—";
     $("#stat-active").textContent = s.active ?? "—";
     $("#stat-load").textContent = (s.host?.load1 ?? 0).toFixed(2);
-    $("#stat-mem").textContent = fmtBytes((s.host?.mem_used_kb) || 0) + " / " + fmtBytes(s.host?.mem_total_kb || 0);
+    $("#stat-mem").textContent = fmtBytes(s.host?.mem_used_kb || 0) + " / " + fmtBytes(s.host?.mem_total_kb || 0);
     $("#stat-cores").textContent = s.host?.cpu_cores ?? "—";
     $("#stat-uptime").textContent = fmtUptime(s.uptime_s);
     $("#hostname").textContent = s.host?.hostname || "—";
@@ -106,9 +107,14 @@ async function loadClients() {
     for (const c of clients) {
       const left = daysLeft(c.expires_at);
       const expired = left <= 0;
+      const role = c.role === "cnc" ? "cnc" : "srv";
+      const roleBadge = role === "cnc"
+        ? `<span class="badge role-cnc">cnc</span>`
+        : `<span class="badge role-srv">srv</span>`;
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${escapeHtml(c.name)}</td>
+        <td>${roleBadge}</td>
         <td>${escapeHtml(c.protocol)}</td>
         <td>${fmtDate(c.expires_at)} ${expired ? "" : `<span class="muted">(${left}d)</span>`}</td>
         <td><span class="badge ${expired ? "exp" : "ok"}">${expired ? "expired" : "active"}</span></td>
@@ -125,7 +131,7 @@ async function loadClients() {
       btn.addEventListener("click", () => viewClient(btn.dataset.view)));
 
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="5" class="muted">${escapeHtml(e.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="muted">${escapeHtml(e.message)}</td></tr>`;
   }
 }
 
@@ -142,16 +148,10 @@ async function deleteClient(id) {
 async function viewClient(id) {
   try {
     const c = await api("/clients/" + id);
-    showResult(c.config, c.uri);
+    showResult(c);
   } catch (e) {
     alert("Load failed: " + e.message);
   }
-}
-
-function escapeHtml(s) {
-  return String(s ?? "").replace(/[&<>"']/g, (m) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  }[m]));
 }
 
 // --- add-client modal ------------------------------------------------------
@@ -159,9 +159,10 @@ function escapeHtml(s) {
 function openModal() {
   state.step = 1;
   state.selectedProtocol = null;
-  state.params = {};
+  state.selectedRole = "srv";
   $("#f-name").value = "";
   $("#f-days").value = "30";
+  document.querySelector('input[name="role"][value="srv"]').checked = true;
   $("#modal-error").classList.add("hidden");
   $("#step-2").classList.add("hidden");
   $("#step-1").classList.remove("hidden");
@@ -192,21 +193,58 @@ function onProtocolChange() {
   const id = $("#f-protocol").value;
   state.selectedProtocol = state.protocols.find((p) => p.id === id) || null;
   $("#proto-desc").textContent = state.selectedProtocol?.description || "";
+  // Hide the role radio for protocols without roles (OpenFlux).
+  const roleField = $("#role-field");
+  if (state.selectedProtocol?.has_roles) {
+    roleField.classList.remove("hidden");
+  } else {
+    roleField.classList.add("hidden");
+  }
+}
+
+function getSelectedRole() {
+  if (state.selectedProtocol && state.selectedProtocol.has_roles === false) {
+    return "srv";
+  }
+  const el = document.querySelector('input[name="role"]:checked');
+  return el ? el.value : "srv";
+}
+
+function fieldsFor(proto, role) {
+  const common = proto.common_fields || [];
+  if (!proto.has_roles) return common;
+  const specific = role === "cnc" ? (proto.fields_client || []) : (proto.fields_server || []);
+  return [...common, ...specific];
+}
+
+// showIf evaluation mirrors the backend sentinel "__nonempty__".
+function showIfSatisfied(cond, params) {
+  if (!cond) return true;
+  const v = params[cond.key] || "";
+  if (cond.value === "__nonempty__") return v.trim() !== "";
+  return v === cond.value;
 }
 
 function renderParams() {
   const p = state.selectedProtocol;
+  const role = getSelectedRole();
   const box = $("#params-container");
   box.innerHTML = "";
 
-  for (const f of p.fields) {
+  for (const f of fieldsFor(p, role)) {
     const label = document.createElement("label");
     label.className = "field";
+    label.dataset.fieldKey = f.key;
+    if (f.show_if) {
+      label.dataset.showIfKey = f.show_if.key;
+      label.dataset.showIfValue = f.show_if.value;
+    }
 
     let input;
-    if (f.type === "select") {
+    if (f.type === "select" || f.type === "bool") {
       input = document.createElement("select");
-      for (const o of f.options || []) {
+      const opts = f.type === "bool" ? ["false", "true"] : (f.options || []);
+      for (const o of opts) {
         const opt = document.createElement("option");
         opt.value = o;
         opt.textContent = o;
@@ -220,6 +258,8 @@ function renderParams() {
       if (f.placeholder) input.placeholder = f.placeholder;
     }
     input.dataset.key = f.key;
+    input.addEventListener("input", refreshConditionalFields);
+    input.addEventListener("change", refreshConditionalFields);
 
     const span = document.createElement("span");
     span.textContent = f.label + (f.required ? " *" : "");
@@ -234,11 +274,38 @@ function renderParams() {
     }
     box.appendChild(label);
   }
+
+  refreshConditionalFields();
+}
+
+function currentParams() {
+  const params = {};
+  $("#params-container").querySelectorAll("[data-key]").forEach((el) => {
+    params[el.dataset.key] = el.value;
+  });
+  return params;
+}
+
+function refreshConditionalFields() {
+  const params = currentParams();
+  $("#params-container").querySelectorAll("[data-field-key]").forEach((label) => {
+    const key = label.dataset.showIfKey;
+    if (!key) return;
+    const cond = { key, value: label.dataset.showIfValue };
+    if (showIfSatisfied(cond, params)) {
+      label.classList.remove("hidden");
+    } else {
+      label.classList.add("hidden");
+    }
+  });
 }
 
 function collectParams() {
   const params = {};
   $("#params-container").querySelectorAll("[data-key]").forEach((el) => {
+    // Skip values of hidden conditional fields to avoid stale input.
+    const label = el.closest("[data-field-key]");
+    if (label && label.classList.contains("hidden")) return;
     params[el.dataset.key] = el.value;
   });
   return params;
@@ -248,6 +315,7 @@ async function submitClient() {
   const name = $("#f-name").value.trim();
   const days = parseInt($("#f-days").value, 10) || 30;
   const protocol = $("#f-protocol").value;
+  const role = getSelectedRole();
 
   if (!name) return showModalError("Name is required");
 
@@ -260,10 +328,10 @@ async function submitClient() {
   try {
     const c = await api("/clients", {
       method: "POST",
-      body: JSON.stringify({ name, protocol, days, params }),
+      body: JSON.stringify({ name, protocol, role, days, params }),
     });
     closeModal();
-    showResult(c.config, c.uri);
+    showResult(c);
     if (location.hash.includes("clients")) loadClients();
   } catch (e) {
     showModalError(e.message);
@@ -281,14 +349,28 @@ function showModalError(msg) {
 
 // --- result modal ----------------------------------------------------------
 
-function showResult(config, uri) {
-  $("#result-config").textContent = config || "";
-  if (uri) {
+function showResult(c) {
+  const isClient = c.role === "cnc";
+  $("#result-title").textContent = isClient ? "Client (cnc) created" : "Server (srv) created";
+  $("#result-hint").textContent = isClient
+    ? "Run this config on the client machine. Point your browser at the SOCKS5 address below."
+    : "Give this URI to the client side (or scan the QR from the olcbox app).";
+  $("#result-config").textContent = c.config || "";
+
+  if (c.uri) {
     $("#result-uri-wrap").classList.remove("hidden");
-    $("#result-uri").value = uri;
+    $("#result-uri").value = c.uri;
   } else {
     $("#result-uri-wrap").classList.add("hidden");
   }
+
+  if (c.socks_addr) {
+    $("#result-socks-wrap").classList.remove("hidden");
+    $("#result-socks").value = c.socks_addr;
+  } else {
+    $("#result-socks-wrap").classList.add("hidden");
+  }
+
   $("#result-modal").classList.remove("hidden");
 }
 
@@ -306,9 +388,11 @@ async function init() {
   $("#result-close").addEventListener("click", () => $("#result-modal").classList.add("hidden"));
   $("#result-done").addEventListener("click", () => $("#result-modal").classList.add("hidden"));
 
+  $$('input[name="role"]').forEach((el) =>
+    el.addEventListener("change", () => { state.selectedRole = getSelectedRole(); }));
+
   $("#btn-next").addEventListener("click", () => {
     if (state.step === 1) {
-      // move to params step
       state.step = 2;
       $("#step-1").classList.add("hidden");
       $("#step-2").classList.remove("hidden");

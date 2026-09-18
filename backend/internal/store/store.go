@@ -14,15 +14,17 @@ import (
 
 // Client is one VPN client record.
 type Client struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Protocol    string    `json:"protocol"`     // "olcrtc" | "openflux"
-	Config      string    `json:"config"`       // generated config content
-	ConfigFile  string    `json:"config_file"`  // path relative to data dir
-	URI         string    `json:"uri,omitempty"`// olcrtc:// or similar
-	CreatedAt   time.Time `json:"created_at"`
-	ExpiresAt   time.Time `json:"expires_at"`
-	Enabled     bool      `json:"enabled"`
+	ID         string    `json:"id"`
+	Name       string    `json:"name"`
+	Protocol   string    `json:"protocol"`      // "olcrtc" | "openflux"
+	Role       string    `json:"role"`          // "srv" | "cnc"
+	Config     string    `json:"config"`        // generated config content
+	ConfigFile string    `json:"config_file"`   // path relative to data dir
+	URI        string    `json:"uri,omitempty"` // olcrtc:// or similar
+	SocksAddr  string    `json:"socks_addr,omitempty"` // client-only
+	CreatedAt  time.Time `json:"created_at"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	Enabled    bool      `json:"enabled"`
 }
 
 type Store struct {

@@ -9,6 +9,7 @@
   --accent-hover: #839eff;
   --danger: #e5484d;
   --ok: #46a758;
+  --warn: #d4a72c;
   --radius: 10px;
 }
 
@@ -24,7 +25,6 @@ body {
 
 .app { display: flex; min-height: 100vh; }
 
-/* sidebar */
 .sidebar {
   width: 220px;
   background: var(--surface);
@@ -67,12 +67,10 @@ body {
 }
 .muted { color: var(--muted); }
 
-/* content */
 .content { flex: 1; padding: 32px 40px; }
 h1 { font-size: 22px; margin: 0 0 24px; font-weight: 600; }
 .view.hidden { display: none; }
 
-/* cards */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -87,7 +85,6 @@ h1 { font-size: 22px; margin: 0 0 24px; font-weight: 600; }
 .card-label { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
 .card-value { font-size: 24px; font-weight: 600; }
 
-/* table */
 .view-head {
   display: flex;
   align-items: center;
@@ -119,6 +116,8 @@ h1 { font-size: 22px; margin: 0 0 24px; font-weight: 600; }
 }
 .badge.ok  { background: rgba(70,167,88,.15);  color: var(--ok); }
 .badge.exp { background: rgba(229,72,77,.15);  color: var(--danger); }
+.badge.role-srv { background: rgba(108,140,255,.15); color: var(--accent); }
+.badge.role-cnc { background: rgba(212,167,44,.15);  color: var(--warn); }
 
 .empty {
   text-align: center;
@@ -127,7 +126,6 @@ h1 { font-size: 22px; margin: 0 0 24px; font-weight: 600; }
 }
 .hidden { display: none !important; }
 
-/* buttons */
 .btn {
   border: none;
   border-radius: 8px;
@@ -138,6 +136,7 @@ h1 { font-size: 22px; margin: 0 0 24px; font-weight: 600; }
 }
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed; }
 .btn-ghost { background: transparent; color: var(--muted); }
 .btn-ghost:hover { color: var(--text); }
 .btn-danger { background: transparent; color: var(--danger); }
@@ -151,7 +150,6 @@ h1 { font-size: 22px; margin: 0 0 24px; font-weight: 600; }
 }
 .btn-icon:hover { color: var(--text); }
 
-/* modal */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -167,7 +165,7 @@ h1 { font-size: 22px; margin: 0 0 24px; font-weight: 600; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   width: 100%;
-  max-width: 520px;
+  max-width: 560px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -189,7 +187,6 @@ h1 { font-size: 22px; margin: 0 0 24px; font-weight: 600; }
   border-top: 1px solid var(--border);
 }
 
-/* fields */
 .field { display: block; margin-bottom: 16px; }
 .field > span {
   display: block;
@@ -213,6 +210,25 @@ h1 { font-size: 22px; margin: 0 0 24px; font-weight: 600; }
   outline: none;
   border-color: var(--accent);
 }
+
+.radio-row {
+  display: flex;
+  gap: 20px;
+  padding: 4px 0;
+}
+.radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--text);
+}
+.radio input[type="radio"] {
+  width: auto;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
 .hint { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
 .error {
   color: var(--danger);
